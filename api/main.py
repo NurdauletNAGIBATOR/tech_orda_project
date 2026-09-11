@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from aml_mule.explain import explain_instance
@@ -87,3 +88,7 @@ def monitor_drift(req: DriftRequest):
     report = compute_drift_report(
         detector.artifact["reference_sample"], df, detector.artifact["feature_cols"])
     return {"drift_report": report.to_dict(orient="records")}
+
+
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
