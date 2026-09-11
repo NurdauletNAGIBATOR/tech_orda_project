@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check src api tests scripts
+
+      - name: Run tests
+        env:
+          PYTHONPATH: src
+        run: pytest -q
+
+  smoke-train:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate synthetic data (real data.csv is never committed)
+        env:
+          PYTHONPATH: src
+        run: python scripts/generate_synthetic_data.py --out data/data.csv
+
+      - name: Run full training pipeline end-to-end
+        env:
+          PYTHONPATH: src
+        run: python -m aml_mule.train --config config/config.yaml
+
+      - name: Check drift script runs against its own reference (should be clean)
+        env:
+          PYTHONPATH: src
+        run: |
+          python scripts/check_drift.py \
+            --artifact artifacts/aml_mule_pipeline_latest.joblib \
+            --batch data/data.csv
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t aml-mule-detection:ci .
