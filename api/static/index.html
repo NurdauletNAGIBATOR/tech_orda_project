@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>AML Mule Detection</title>
+<style>
+  :root { --ok: #1a8a4a; --bad: #c0392b; --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); padding: 32px 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); }
+  .dot.bad { background: var(--bad); }
+  .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+  input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #334155;
+    background: #0f172a; color: var(--text); font-size: 14px;
+  }
+  button {
+    margin-top: 20px; width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: #3b82f6; color: white; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #2563eb; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .result { display: none; }
+  .verdict { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .verdict.mule { color: var(--bad); }
+  .verdict.clean { color: var(--ok); }
+  .proba { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .factors { list-style: none; padding: 0; margin: 0; }
+  .factors li {
+    display: flex; justify-content: space-between; padding: 8px 0;
+    border-top: 1px solid #334155; font-size: 13px;
+  }
+  .factors li:first-child { border-top: none; }
+  .factor-val { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .err { color: var(--bad); font-size: 13px; margin-top: 12px; display: none; }
+  .preset { font-size: 12px; color: #60a5fa; cursor: pointer; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AML Mule Detection</h1>
+  <div class="sub">Проверка клиента на признаки дроппера (money mule)</div>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">проверка сервиса...</span></div>
+
+  <div class="card">
+    <div>
+      <span class="preset" onclick="fillPreset('mule')">заполнить пример: похож на дроппера</span>
+      <span class="preset" onclick="fillPreset('trader')">заполнить пример: активный трейдер</span>
+    </div>
+
+    <label>Возраст счёта, дни (Account_Age_Days)</label>
+    <input type="number" id="Account_Age_Days" value="1200">
+
+    <label>Объём транзакций, USD (Transaction_Volume_USD)</label>
+    <input type="number" id="Transaction_Volume_USD" value="2500">
+
+    <label>Среднее время между транзакциями, мин (Avg_Time_Between_Trans_Min)</label>
+    <input type="number" id="Avg_Time_Between_Trans_Min" value="4000">
+
+    <label>Флаги за 6 мес (Flags_Last_6M)</label>
+    <input type="number" id="Flags_Last_6M" value="0">
+
+    <label>Средний остаток на конец дня, USD (Avg_End_Day_Balance)</label>
+    <input type="number" id="Avg_End_Day_Balance" value="4500">
+
+    <button id="submitBtn" onclick="checkClient()">Проверить клиента</button>
+    <div class="err" id="errBox"></div>
+  </div>
+
+  <div class="card result" id="resultCard">
+    <div class="verdict" id="verdict"></div>
+    <div class="proba" id="proba"></div>
+    <ul class="factors" id="factors"></ul>
+  </div>
+</div>
+
+<script>
+const FIELDS = ["Account_Age_Days", "Transaction_Volume_USD", "Avg_Time_Between_Trans_Min",
+                "Flags_Last_6M", "Avg_End_Day_Balance"];
+
+const PRESETS = {
+  mule:   { Account_Age_Days: 20, Transaction_Volume_USD: 42000, Avg_Time_Between_Trans_Min: 8,
+            Flags_Last_6M: 2, Avg_End_Day_Balance: 130 },
+  trader: { Account_Age_Days: 1400, Transaction_Volume_USD: 48000, Avg_Time_Between_Trans_Min: 25,
+            Flags_Last_6M: 0, Avg_End_Day_Balance: 16000 },
+};
+
+function fillPreset(name) {
+  const p = PRESETS[name];
+  FIELDS.forEach(f => document.getElementById(f).value = p[f]);
+}
+
+async function checkHealth() {
+  const dot = document.getElementById("statusDot");
+  const text = document.getElementById("statusText");
+  try {
+    const r = await fetch("/health");
+    const data = await r.json();
+    if (data.model_loaded) {
+      dot.classList.add("ok");
+      text.textContent = "сервис работает, модель загружена";
+    } else {
+      dot.classList.add("bad");
+      text.textContent = "сервис работает, но модель НЕ обучена (запусти aml_mule.train)";
+    }
+  } catch (e) {
+    dot.classList.add("bad");
+    text.textContent = "сервис недоступен";
+  }
+}
+
+async function checkClient() {
+  const btn = document.getElementById("submitBtn");
+  const errBox = document.getElementById("errBox");
+  const resultCard = document.getElementById("resultCard");
+  errBox.style.display = "none";
+  resultCard.style.display = "none";
+  btn.disabled = true;
+  btn.textContent = "Проверяю...";
+
+  const record = {};
+  for (const f of FIELDS) record[f] = parseFloat(document.getElementById(f).value);
+
+  try {
+    const r = await fetch("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ records: [record] }),
+    });
+    if (!r.ok) {
+      const detail = (await r.json()).detail || r.statusText;
+      throw new Error(detail);
+    }
+    const data = await r.json();
+    const pred = data.predictions[0];
+
+    const verdict = document.getElementById("verdict");
+    verdict.textContent = pred.is_mule ? "Похож на дроппера" : "Выглядит как обычный клиент";
+    verdict.className = "verdict " + (pred.is_mule ? "mule" : "clean");
+    document.getElementById("proba").textContent =
+      "вероятность: " + (pred.probability * 100).toFixed(1) + "%";
+
+    const factorsList = document.getElementById("factors");
+    factorsList.innerHTML = "";
+    for (const [name, val] of Object.entries(pred.top_factors)) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${name}</span><span class="factor-val">${val >= 0 ? "+" : ""}${val.toFixed(3)}</span>`;
+      factorsList.appendChild(li);
+    }
+    resultCard.style.display = "block";
+  } catch (e) {
+    errBox.textContent = "Ошибка: " + e.message;
+    errBox.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Проверить клиента";
+  }
+}
+
+checkHealth();
+</script>
+</body>
+</html>
