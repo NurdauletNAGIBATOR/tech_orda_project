@@ -1,10 +1,4 @@
-"""CLI drift check -- compares a new batch of records against the reference
-sample stored inside the trained artifact. Exits non-zero if any feature is
-in critical drift, so this can gate a CI/cron job.
 
-Usage:
-    python scripts/check_drift.py --artifact artifacts/aml_mule_pipeline_latest.joblib --batch data/new_batch.csv
-"""
 import argparse
 import sys
 

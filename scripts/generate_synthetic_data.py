@@ -1,8 +1,4 @@
-"""Generates a synthetic dataset with the same shape/quirks as the real
-project data (three customer segments, injected missingness, ~480 rows
-with an unrecoverable label). Useful for CI smoke tests and for trying the
-whole project before plugging in the real data.csv.
-"""
+
 import argparse
 from pathlib import Path
 
