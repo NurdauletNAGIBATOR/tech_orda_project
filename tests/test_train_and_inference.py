@@ -1,6 +1,3 @@
-"""Trains a tiny end-to-end model on synthetic data and checks the saved
-artifact can actually be loaded and used for inference -- the closest thing
-to an integration test for the whole pipeline."""
 import sys
 from pathlib import Path
 
