@@ -106,9 +106,6 @@ def train(cfg_path: str = "config/config.yaml") -> dict:
             "roc_auc": float(roc_auc_score(y_val, proba)),
         }
 
-    # defense-in-depth ensemble: a primary model regularized to not lean
-    # entirely on the two dominant features, plus a fallback model that
-    # never sees those features at all (see notebook section 11 for why).
     dominant = [c for c in mcfg["dominant_features"] if c in feature_cols]
     remaining_feats = [c for c in feature_cols if c not in dominant]
 

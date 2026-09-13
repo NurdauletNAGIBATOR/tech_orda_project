@@ -1,5 +1,3 @@
-"""Missing-value handling, leak-safe preprocessing, feature engineering."""
-
 import numpy as np
 import pandas as pd
 from sklearn.impute import KNNImputer
@@ -14,10 +12,7 @@ def add_missing_flags(df: pd.DataFrame, raw_num_cols: list[str]) -> pd.DataFrame
 
 
 class Preprocessor:
-    """Scaler + KNN imputer. fit() must only ever see the train split;
-    transform() is what val/test/production all call -- this is what
-    prevents the imputer/scaler from leaking information across splits."""
-
+    
     def __init__(self, raw_num_cols: list[str], n_neighbors: int = 5):
         self.raw_num_cols = raw_num_cols
         self.scaler = StandardScaler()

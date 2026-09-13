@@ -1,5 +1,3 @@
-"""Production inference: load a saved artifact, score new records with the
-same defense-in-depth logic used at training time (max of primary/fallback)."""
 import joblib
 import numpy as np
 import pandas as pd

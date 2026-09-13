@@ -1,9 +1,3 @@
-"""Loading and label-integrity fixes.
-
-Is_Mule is not stored directly -- it is reconstructed from the Customer_ID
-prefix. Rows with a missing Customer_ID have no reliable label and must be
-dropped, not defaulted to 0 (defaulting silently injects label noise).
-"""
 import pandas as pd
 
 

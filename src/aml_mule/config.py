@@ -1,4 +1,3 @@
-"""Config loading -- one yaml file drives paths, split, model and monitoring params."""
 import yaml
 
 

@@ -1,4 +1,3 @@
-"""Per-customer SHAP explanation -- the compliance-facing "why" behind a flag."""
 import pandas as pd
 import shap
 
