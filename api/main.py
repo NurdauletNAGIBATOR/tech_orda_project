@@ -1,9 +1,3 @@
-"""FastAPI service exposing the trained mule-detection pipeline.
-
-GET  /health           -- liveness + whether a model is loaded
-POST /predict          -- score a batch of transactions, with per-record top SHAP factors
-POST /monitor/drift    -- compare a batch against the training reference sample (PSI)
-"""
 from contextlib import asynccontextmanager
 from pathlib import Path
 
